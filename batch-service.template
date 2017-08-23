@@ -1,0 +1,128 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "",
+  "Parameters": {
+    "EnvName": {
+      "Description": "Logical name (environment-application-role) for this system",
+      "Type": "String"
+    },
+    "Environment": {
+      "Description": "The environment parameter for the docker container",
+      "Type": "String"
+    },
+    "DesiredCapacity": {
+      "Description": "number of containers to run of primary container",
+      "Type": "Number"
+    },
+    "ContainerImage": {
+      "Description": "Container image to use in the ECS task definition",
+      "Type": "String"
+    },
+    "ClusterStack": {
+      "Description": "ECS Cluster stack name to deploy service into",
+      "Type": "String"
+    },
+    "TaskMemory": {
+      "Description": "The amount of memory for use by the task",
+      "Type": "Number"
+    },
+    "TaskCPU": {
+      "Description": "The amount of cpu units (see ecs) for use by the task",
+      "Type": "Number"
+    }
+  },
+  "Resources": {
+
+    "Service": {
+      "Type": "AWS::ECS::Service",
+      "Properties": {
+        "Cluster": {
+          "Fn::ImportValue" : {"Fn::Sub" : "${ClusterStack}-ECSCluster"}
+        },
+        "DeploymentConfiguration": {
+          "MaximumPercent": 600,
+          "MinimumHealthyPercent": 50
+        },
+        "DesiredCount": {
+          "Ref": "DesiredCapacity"
+        },
+        "TaskDefinition": {
+          "Ref": "TaskDefinition"
+        }
+      }
+    },
+    "TaskDefinition": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": {"Fn::Sub": "${AWS::StackName}-ECSTaskFamily" },
+        "ContainerDefinitions": [
+          {
+            "VolumesFrom": [],
+            "MemoryReservation": { "Ref": "TaskMemory" },
+
+            "Essential": true,
+            "MountPoints": [],
+            "Name": {
+              "Ref": "EnvName"
+            },
+            "Environment": [
+              {
+                "Name": "ENVIRONMENT",
+                "Value": {
+                  "Ref": "Environment"
+                }
+              }
+            ],
+            "Image": {
+              "Ref": "ContainerImage"
+            },
+            "Cpu": { "Ref": "TaskCPU" },
+
+            "PortMappings": [
+              {
+                "ContainerPort": 5000
+              }
+            ],
+            "LogConfiguration": {
+                          "LogDriver": "awslogs",
+                          "Options": {
+                              "awslogs-group": {
+                                  "Ref": "LogGroup"
+                              },
+                              "awslogs-region": {
+                                  "Ref": "AWS::Region"
+                              }
+                          }
+                        }
+          }
+        ],
+        "Volumes": []
+      }
+    },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 120
+      }
+    }
+  },
+  "Outputs": {
+    "ECSService": {
+      "Description": "The service name of the  contribution api",
+      "Value": {
+        "Ref": "Service"
+      } ,
+                    "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-ECSService" }}
+    },
+    "ECSServiceName": {
+              "Description": "The service name of the  contribution api",
+              "Value": {"Fn::GetAtt":["Service","Name"]} ,
+              "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-ECSServiceName" }}
+            },
+    "ECSTaskFamily": {
+      "Description": "The task name of the  contribution api",
+      "Value":  {"Fn::Sub": "${AWS::StackName}-ECSTaskFamily" },
+                    "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-ECSTaskFamily" }}
+    }
+  }
+}
